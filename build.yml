@@ -19,8 +19,16 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Unzip project
-        run: unzip -q project.zip -d src_build
+      # يفك project.zip ويلاقي فولدر المشروع لوحده (سواء الملفات في الجذر أو جوه فولدر)
+      - name: Unzip project and locate it
+        run: |
+          unzip -q project.zip -d src_build
+          SETTINGS=$(find src_build -maxdepth 3 -name "settings.gradle.kts" | head -n 1)
+          if [ -z "$SETTINGS" ]; then
+            echo "settings.gradle.kts not found inside project.zip"; ls -R src_build | head -50; exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$SETTINGS")" >> "$GITHUB_ENV"
+          echo "Project dir: $(dirname "$SETTINGS")"
 
       - name: Create debug keystore
         run: |
@@ -30,10 +38,10 @@ jobs:
             -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Build debug APK
-        working-directory: src_build/RaneenQuality
+        working-directory: ${{ env.PROJECT_DIR }}
         run: gradle assembleDebug --no-daemon --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
           name: Raneen-debug-apk
-          path: src_build/RaneenQuality/app/build/outputs/apk/debug/*.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
